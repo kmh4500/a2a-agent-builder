@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { AgentBuilderForm, AgentConfig } from '@/types/agent';
-import { v4 as uuidv4 } from 'uuid';
 import Link from 'next/link';
 
 export default function AgentBuilder() {

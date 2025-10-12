@@ -59,7 +59,7 @@ export async function setAgent(agentId: string, agent: StoredAgent): Promise<voi
 
 export async function getAllAgents(): Promise<StoredAgent[]> {
   // Get all agent IDs from the set
-  const agentIds = await redis.smembers<string>(REDIS_KEYS.AGENT_LIST);
+  const agentIds = await redis.smembers(REDIS_KEYS.AGENT_LIST);
 
   if (!agentIds || agentIds.length === 0) {
     return [];
