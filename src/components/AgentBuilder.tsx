@@ -12,7 +12,7 @@ export default function AgentBuilder() {
 
   const generateAgentFromPrompt = async () => {
     if (!prompt.trim()) {
-      alert('프롬프트를 입력해주세요');
+      alert('Please enter a prompt');
       return;
     }
 
@@ -34,7 +34,7 @@ export default function AgentBuilder() {
     } catch (error) {
       console.error('Error generating agent:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      alert(`에이전트 생성 실패: ${errorMessage}\n\n서버 콘솔에서 자세한 로그를 확인해주세요.`);
+      alert(`Failed to generate agent: ${errorMessage}\n\nPlease check the server console for detailed logs.`);
     } finally {
       setIsGenerating(false);
     }
@@ -46,7 +46,8 @@ export default function AgentBuilder() {
       return;
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    // Use window.location.origin for dynamic URL generation
+    const siteUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
     // Convert agent name to meaningful English slug
     // Remove non-ASCII characters, convert to lowercase, replace spaces with hyphens
@@ -135,11 +136,11 @@ export default function AgentBuilder() {
       ));
 
       const agentCardUrl = `${agent.url}/.well-known/agent.json`;
-      alert(`✅ 에이전트가 성공적으로 배포되었습니다!\n\n🔗 Base URL: ${agent.url}\n📄 Agent Card: ${agentCardUrl}\n\n이제 다른 클라이언트에서 이 에이전트에 연결할 수 있습니다.`);
+      alert(`✅ Agent deployed successfully!\n\n🔗 Base URL: ${agent.url}\n📄 Agent Card: ${agentCardUrl}\n\nYou can now connect to this agent from other clients.`);
     } catch (error) {
       console.error('Error deploying agent:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      alert(`❌ 에이전트 배포 실패: ${errorMessage}\n\n서버 콘솔에서 자세한 로그를 확인해주세요.`);
+      alert(`❌ Failed to deploy agent: ${errorMessage}\n\nPlease check the server console for detailed logs.`);
     }
   };
 
@@ -152,7 +153,7 @@ export default function AgentBuilder() {
             <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
               <span className="text-white text-xl font-bold">🏠</span>
             </div>
-            <span className="font-bold text-gray-700 group-hover:text-purple-600 transition-colors">홈으로</span>
+            <span className="font-bold text-gray-700 group-hover:text-purple-600 transition-colors">Home</span>
           </Link>
           <div className="flex items-center gap-2">
             <div className="px-4 py-2 bg-gradient-to-r from-purple-100 to-blue-100 rounded-lg">
@@ -170,7 +171,7 @@ export default function AgentBuilder() {
           <h1 className="text-5xl font-extrabold mb-4 bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent">
             A2A Agent Builder
           </h1>
-          <p className="text-gray-600 text-lg">AI로 나만의 에이전트를 쉽고 빠르게 만들어보세요</p>
+          <p className="text-gray-600 text-lg">Build and deploy your own AI agents quickly and easily</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -180,19 +181,19 @@ export default function AgentBuilder() {
               <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
                 <span className="text-white text-xl font-bold">✨</span>
               </div>
-              <h2 className="text-2xl font-bold text-gray-800">새 에이전트 만들기</h2>
+              <h2 className="text-2xl font-bold text-gray-800">Create New Agent</h2>
             </div>
           
           <div>
             <label className="block text-sm font-semibold mb-3 text-gray-700">
-              에이전트 설명
-              <span className="text-gray-400 font-normal ml-2">(어떤 에이전트를 만들고 싶으신가요?)</span>
+              Agent Description
+              <span className="text-gray-400 font-normal ml-2">(What kind of agent would you like to create?)</span>
             </label>
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               className="w-full p-4 border-2 border-gray-200 rounded-xl h-40 focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all duration-200 resize-none"
-              placeholder="예: Web3와 블록체인 기술을 소크라테스식 문답법으로 가르치는 AI 튜터를 만들어줘. 학생들이 스스로 답을 찾도록 유도하고, 복잡한 개념을 단계적으로 이해할 수 있게 도와줘."
+              placeholder="Example: Create an AI tutor that teaches Web3 and blockchain technology using the Socratic method. Guide students to find answers themselves and help them understand complex concepts step by step."
             />
           </div>
 
@@ -203,11 +204,11 @@ export default function AgentBuilder() {
           >
             {isGenerating ? (
               <span className="flex items-center justify-center gap-2">
-                <span className="animate-spin">⚡</span> 생성 중...
+                <span className="animate-spin">⚡</span> Generating...
               </span>
             ) : (
               <span className="flex items-center justify-center gap-2">
-                🤖 AI로 에이전트 생성하기
+                🤖 Generate Agent with AI
               </span>
             )}
           </button>
@@ -216,7 +217,7 @@ export default function AgentBuilder() {
           {generatedForm && (
             <div className="mt-6 p-6 bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl border-2 border-purple-200 animate-fade-in">
               <h3 className="font-bold text-lg mb-4 text-purple-900 flex items-center gap-2">
-                ✨ 생성된 에이전트
+                ✨ Generated Agent
               </h3>
 
               <div className="space-y-4">
@@ -263,7 +264,7 @@ export default function AgentBuilder() {
                 onClick={createAgent}
                 className="mt-6 w-full py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl hover:from-green-600 hover:to-emerald-600 font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
               >
-                ✅ 이 에이전트 생성하기
+                ✅ Create This Agent
               </button>
             </div>
           )}
@@ -275,14 +276,14 @@ export default function AgentBuilder() {
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center">
               <span className="text-white text-xl font-bold">🤖</span>
             </div>
-            <h2 className="text-2xl font-bold text-gray-800">생성된 에이전트</h2>
+            <h2 className="text-2xl font-bold text-gray-800">Created Agents</h2>
           </div>
 
           {agents.length === 0 ? (
             <div className="bg-white/90 backdrop-blur-sm p-12 rounded-2xl shadow-xl border border-blue-100 text-center">
               <div className="text-6xl mb-4">🎯</div>
-              <p className="text-gray-500 text-lg mb-2">아직 생성된 에이전트가 없습니다</p>
-              <p className="text-gray-400">왼쪽에 프롬프트를 입력하고 첫 번째 에이전트를 만들어보세요!</p>
+              <p className="text-gray-500 text-lg mb-2">No agents created yet</p>
+              <p className="text-gray-400">Enter a prompt on the left to create your first agent!</p>
             </div>
           ) : (
             <div className="space-y-4">

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AgentConfig } from '@/types/agent';
+import { getBaseUrl } from '@/lib/url';
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,8 +12,8 @@ export async function POST(request: NextRequest) {
     // Use relative path for internal API call
     const deployUrl = `/api/agents/${agentId}/deploy`;
 
-    // Get the base URL for the fetch (needs to be absolute for server-side fetch)
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || `http://localhost:${process.env.PORT || 3000}`;
+    // Get the base URL from request headers
+    const baseUrl = getBaseUrl(request);
     const absoluteDeployUrl = `${baseUrl}${deployUrl}`;
 
     console.log('🚀 Deploying agent to:', absoluteDeployUrl);

@@ -13,6 +13,7 @@ import {
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 import { getAgent, setAgent, hasAgent, getAllAgents, type StoredAgent } from '@/lib/agentStore';
+import { getBaseUrl } from '@/lib/url';
 
 const AGENT_CARD_PATH = ".well-known/agent.json";
 
@@ -154,7 +155,7 @@ function ensureAgentHandlers(agent: StoredAgent, agentId: string): StoredAgent {
 let sampleAgentInitialized = false;
 const sampleAgentId = 'socrates-web3-tutor';
 
-async function ensureSampleAgent() {
+async function ensureSampleAgent(request: NextRequest) {
   if (sampleAgentInitialized) return;
 
   const exists = await hasAgent(sampleAgentId);
@@ -163,12 +164,15 @@ async function ensureSampleAgent() {
     return;
   }
 
+  // Get base URL from request headers
+  const baseUrl = getBaseUrl(request);
+
   const sampleCard: AgentCard = {
     name: "Socrates Web3 Tutor",
-    description: "Web3, AI, 블록체인 등 다양한 주제에 대해 소크라테스식 문답법으로 대화하며 학습을 도와주는 AI 튜터입니다.",
+    description: "An AI tutor that teaches Web3, AI, blockchain and various topics through Socratic dialogue, helping students learn by asking questions.",
     protocolVersion: "0.3.0",
     version: "0.1.0",
-    url: (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000") + `/api/agents/${sampleAgentId}`,
+    url: `${baseUrl}/api/agents/${sampleAgentId}`,
     capabilities: {},
     defaultInputModes: ["text"],
     defaultOutputModes: ["text"],
@@ -176,7 +180,7 @@ async function ensureSampleAgent() {
       {
         id: "chat",
         name: "Socratic Dialogue",
-        description: "질문을 통해 사고를 유도하고 스스로 답을 찾도록 돕습니다",
+        description: "Guide thinking through questions and help find answers independently",
         tags: ["chat", "socratic", "web3", "ai", "blockchain"]
       }
     ],
@@ -227,7 +231,7 @@ export async function GET(
   context: { params: Promise<{ agentId: string; path?: string[] }> }
 ) {
   // Ensure sample agent is initialized
-  await ensureSampleAgent();
+  await ensureSampleAgent(request);
 
   const params = await context.params;
   const agentId = params.agentId;
@@ -264,7 +268,7 @@ export async function POST(
   context: { params: Promise<{ agentId: string; path?: string[] }> }
 ) {
   // Ensure sample agent is initialized
-  await ensureSampleAgent();
+  await ensureSampleAgent(request);
 
   const params = await context.params;
   const agentId = params.agentId;

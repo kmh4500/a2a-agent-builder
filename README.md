@@ -51,7 +51,6 @@ cp .env.example .env
 GEMINI_API_KEY=your_gemini_api_key_here
 
 # Next.js Configuration
-NEXT_PUBLIC_SITE_URL=http://localhost:3001
 PORT=3001
 
 # Upstash Redis Configuration (get from https://console.upstash.com/)
@@ -129,8 +128,7 @@ This project is configured for deployment on Vercel or any Node.js hosting platf
 Set the following environment variables in your deployment:
 
 - `GEMINI_API_KEY`
-- `NEXT_PUBLIC_SITE_URL`
-- `PORT`
+- `PORT` (optional, defaults to 3000)
 - `KV_REST_API_URL`
 - `KV_REST_API_TOKEN`
 
