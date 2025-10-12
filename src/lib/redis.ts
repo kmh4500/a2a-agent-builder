@@ -5,19 +5,19 @@ let redisClient: Redis | null = null;
 
 function getRedisClient(): Redis {
   if (!redisClient) {
-    const url = process.env.UPSTASH_REDIS_REST_URL;
-    const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+    const url = process.env.KV_REST_API_URL;
+    const token = process.env.KV_REST_API_TOKEN;
 
-    if (!url || url === "your_upstash_redis_rest_url") {
+    if (!url || url === "your_kv_rest_api_url") {
       throw new Error(
-        "UPSTASH_REDIS_REST_URL is not properly configured in environment variables. " +
+        "KV_REST_API_URL is not properly configured in environment variables. " +
         "Please set it to your actual Upstash Redis REST URL from https://console.upstash.com/"
       );
     }
 
-    if (!token || token === "your_upstash_redis_rest_token") {
+    if (!token || token === "your_kv_rest_api_token") {
       throw new Error(
-        "UPSTASH_REDIS_REST_TOKEN is not properly configured in environment variables. " +
+        "KV_REST_API_TOKEN is not properly configured in environment variables. " +
         "Please set it to your actual Upstash Redis REST token from https://console.upstash.com/"
       );
     }

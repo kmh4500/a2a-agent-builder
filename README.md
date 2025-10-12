@@ -55,8 +55,8 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3001
 PORT=3001
 
 # Upstash Redis Configuration (get from https://console.upstash.com/)
-UPSTASH_REDIS_REST_URL=your_upstash_redis_rest_url
-UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_rest_token
+KV_REST_API_URL=your_kv_rest_api_url
+KV_REST_API_TOKEN=your_kv_rest_api_token
 ```
 
 ### Setting up Upstash Redis
@@ -131,15 +131,15 @@ Set the following environment variables in your deployment:
 - `GEMINI_API_KEY`
 - `NEXT_PUBLIC_SITE_URL`
 - `PORT`
-- `UPSTASH_REDIS_REST_URL`
-- `UPSTASH_REDIS_REST_TOKEN`
+- `KV_REST_API_URL`
+- `KV_REST_API_TOKEN`
 
 ## Troubleshooting
 
 ### Redis Connection Issues
 
 If you see errors related to Redis:
-1. Verify your `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are correct
+1. Verify your `KV_REST_API_URL` and `KV_REST_API_TOKEN` are correct
 2. Check that your Upstash Redis database is active
 3. Ensure your IP is not blocked (Upstash free tier has some restrictions)
 
