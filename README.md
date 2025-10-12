@@ -15,7 +15,7 @@ A platform for building and deploying AI agents using the Agent-to-Agent (A2A) p
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 22+ (recommended: use [nvm](https://github.com/nvm-sh/nvm))
 - Gemini API key (from [Google AI Studio](https://makersuite.google.com/app/apikey))
 - Upstash Redis account (free tier available at [Upstash Console](https://console.upstash.com/))
 
@@ -27,17 +27,24 @@ git clone <repository-url>
 cd a2a-agent-builder
 ```
 
-2. Install dependencies:
+2. Install Node.js 22 (if using nvm):
+```bash
+nvm use 22
+# or if not installed yet:
+# nvm install 22
+```
+
+3. Install dependencies:
 ```bash
 npm install
 ```
 
-3. Set up environment variables:
+4. Set up environment variables:
 ```bash
 cp .env.example .env
 ```
 
-4. Configure your `.env` file with the following:
+5. Configure your `.env` file with the following:
 
 ```bash
 # Gemini API Key (get from https://makersuite.google.com/app/apikey)
