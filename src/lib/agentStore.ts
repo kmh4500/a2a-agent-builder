@@ -6,11 +6,29 @@ import type {
 } from "@a2a-js/sdk/server";
 import { redis, REDIS_KEYS } from "./redis";
 
+// Intent-based memory structure (legacy)
+export interface IntentMemory {
+  thinking: string;
+  caring: string;
+}
+
 export interface StoredAgent {
   card: AgentCard;
   prompt: string;
   modelProvider: string;
   modelName: string;
+  // Intent-based thinking: { [intent]: thinking }
+  thinkingMemories?: Record<string, string>;
+  // User-based caring: { [username]: caring }
+  caringMemories?: Record<string, string>;
+  // Intent pattern matching: { [intent]: [keywords] }
+  intentPatterns?: Record<string, string[]>;
+  // Legacy fields for backward compatibility
+  memories?: Record<string, IntentMemory>;
+  thinking?: string;
+  caring?: string;
+  thinkingHistory?: string[];
+  caringHistory?: string[];
   executor?: AgentExecutor;
   requestHandler?: DefaultRequestHandler;
   transportHandler?: JsonRpcTransportHandler;
@@ -22,6 +40,15 @@ export interface SerializableAgent {
   prompt: string;
   modelProvider: string;
   modelName: string;
+  thinkingMemories?: Record<string, string>;
+  caringMemories?: Record<string, string>;
+  intentPatterns?: Record<string, string[]>;
+  // Legacy
+  memories?: Record<string, IntentMemory>;
+  thinking?: string;
+  caring?: string;
+  thinkingHistory?: string[];
+  caringHistory?: string[];
 }
 
 // Convert StoredAgent to SerializableAgent for Redis storage
@@ -31,6 +58,14 @@ function toSerializable(agent: StoredAgent): SerializableAgent {
     prompt: agent.prompt,
     modelProvider: agent.modelProvider,
     modelName: agent.modelName,
+    thinkingMemories: agent.thinkingMemories,
+    caringMemories: agent.caringMemories,
+    intentPatterns: agent.intentPatterns,
+    memories: agent.memories,
+    thinking: agent.thinking,
+    caring: agent.caring,
+    thinkingHistory: agent.thinkingHistory,
+    caringHistory: agent.caringHistory,
   };
 }
 
@@ -38,6 +73,14 @@ function toSerializable(agent: StoredAgent): SerializableAgent {
 function fromSerializable(data: SerializableAgent): StoredAgent {
   return {
     ...data,
+    thinkingMemories: data.thinkingMemories,
+    caringMemories: data.caringMemories,
+    intentPatterns: data.intentPatterns,
+    memories: data.memories,
+    thinking: data.thinking,
+    caring: data.caring,
+    thinkingHistory: data.thinkingHistory,
+    caringHistory: data.caringHistory,
     executor: undefined,
     requestHandler: undefined,
     transportHandler: undefined,

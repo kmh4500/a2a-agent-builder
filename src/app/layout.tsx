@@ -9,8 +9,8 @@ const baseUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
   : (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000');
 
-const agentName = "소크라테스 Web3 AI 튜터 (Gemini)";
-const description = "Web3와 AI의 융합에 대해 소크라테스식 문답법으로 탐구해보세요. A2A 프로토콜 기반 에이전트.";
+const agentName = "A2A Agent Builder";
+const description = "Build and deploy your own AI agents with A2A Protocol. Create evolving agents that balance Thinking and Caring.";
 // const imageUrl = `${baseUrl}/agent-card-image.png`; // 이미지 사용 시 주석 해제
 
 export const metadata: Metadata = {
@@ -57,7 +57,7 @@ export default function RootLayout({
           rel="agent"
           type="application/json"
           href="/.well-known/ai-agent.json"
-          title="A2A Agent Definition: Socrates Web3 AI Tutor (Gemini)"
+          title="A2A Agent Builder"
         />
       </head>
       <body className={inter.className} suppressHydrationWarning={true}>{children}</body>

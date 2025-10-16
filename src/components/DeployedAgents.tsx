@@ -39,6 +39,29 @@ export default function DeployedAgents() {
     fetchAgents();
   }, []);
 
+  const deleteAgent = async (agentId: string) => {
+    if (!confirm('Are you sure you want to delete this agent? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/agents/${agentId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete agent');
+      }
+
+      // Remove agent from list
+      setAgents(prev => prev.filter(agent => agent.id !== agentId));
+      alert('✅ Agent deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting agent:', error);
+      alert('❌ Failed to delete agent. Please try again.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
       {/* Navigation Bar */}
@@ -67,7 +90,7 @@ export default function DeployedAgents() {
           <h1 className="text-5xl font-extrabold mb-4 bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent">
             Deployed A2A Agents
           </h1>
-          <p className="text-gray-600 text-lg">배포된 AI 에이전트들과 대화해보세요</p>
+          <p className="text-gray-600 text-lg">Chat with deployed AI agents</p>
         </div>
 
         {/* Content */}
@@ -79,12 +102,12 @@ export default function DeployedAgents() {
         ) : agents.length === 0 ? (
           <div className="bg-white/90 backdrop-blur-sm p-12 rounded-2xl shadow-xl border border-blue-100 text-center">
             <div className="text-6xl mb-4">🤷</div>
-            <p className="text-gray-500 text-lg mb-4">배포된 에이전트가 없습니다</p>
+            <p className="text-gray-500 text-lg mb-4">No deployed agents yet</p>
             <Link
               href="/builder"
               className="inline-block px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition font-semibold shadow-md"
             >
-              첫 번째 에이전트 만들기
+              Create Your First Agent
             </Link>
           </div>
         ) : (
@@ -152,6 +175,12 @@ export default function DeployedAgents() {
                     className="w-full py-2 bg-white border-2 border-gray-200 text-gray-700 rounded-lg hover:border-purple-300 hover:bg-purple-50 font-semibold transition-all duration-200 text-sm"
                   >
                     📋 Copy Agent URL
+                  </button>
+                  <button
+                    onClick={() => deleteAgent(agent.id)}
+                    className="w-full py-2 bg-white border-2 border-red-200 text-red-600 rounded-lg hover:border-red-400 hover:bg-red-50 font-semibold transition-all duration-200 text-sm"
+                  >
+                    🗑️ Delete Agent
                   </button>
                 </div>
               </div>

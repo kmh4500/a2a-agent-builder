@@ -174,8 +174,8 @@ export default function AgentBuilder() {
           <p className="text-gray-600 text-lg">Build and deploy your own AI agents quickly and easily</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Input Section */}
+        {/* Create New Agent Section - Centered */}
+        <div className="max-w-3xl mx-auto mb-8">
           <div className="space-y-6 bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-purple-100 hover:shadow-2xl transition-shadow duration-300">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
@@ -268,24 +268,19 @@ export default function AgentBuilder() {
               </button>
             </div>
           )}
+          </div>
         </div>
 
-        {/* Created Agents Section */}
-        <div className="space-y-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center">
-              <span className="text-white text-xl font-bold">🤖</span>
+        {/* Created Agents Section - Show all created agents */}
+        {agents.length > 0 && (
+          <div className="max-w-3xl mx-auto space-y-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center">
+                <span className="text-white text-xl font-bold">🤖</span>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-800">Created Agents</h2>
             </div>
-            <h2 className="text-2xl font-bold text-gray-800">Created Agents</h2>
-          </div>
 
-          {agents.length === 0 ? (
-            <div className="bg-white/90 backdrop-blur-sm p-12 rounded-2xl shadow-xl border border-blue-100 text-center">
-              <div className="text-6xl mb-4">🎯</div>
-              <p className="text-gray-500 text-lg mb-2">No agents created yet</p>
-              <p className="text-gray-400">Enter a prompt on the left to create your first agent!</p>
-            </div>
-          ) : (
             <div className="space-y-4">
               {agents.map(agent => (
                 <div key={agent.id} className="bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-xl border border-blue-100 hover:shadow-2xl hover:border-blue-300 transition-all duration-300">
@@ -366,9 +361,8 @@ export default function AgentBuilder() {
                 </div>
               ))}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+        )}
       </div>
     </div>
   );

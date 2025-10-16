@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     IMPORTANT RULES:
     - The "name" field MUST be in English only (no Korean, Chinese, Japanese, etc.)
-    - The name should be concise, descriptive, and URL-friendly (e.g., "Socrates Web3 Tutor", "Blockchain Learning Assistant")
+    - The name should be concise, unique, and URL-friendly (e.g., "Socrates", "Ryu Seong-ryong")
     - The description can be in the same language as user's request
     - The prompt is detailed and defines the agent's personality, behavior, and expertise
     - Skills are relevant to the agent's purpose

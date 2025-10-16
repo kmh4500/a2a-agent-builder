@@ -12,14 +12,22 @@ import {
 } from "@a2a-js/sdk/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-import { getAgent, setAgent, hasAgent, getAllAgents, type StoredAgent } from '@/lib/agentStore';
+import { getAgent, setAgent, hasAgent, getAllAgents, deleteAgent, type StoredAgent } from '@/lib/agentStore';
+import { classifyIntent, getThinkingMemory, getUserCaring, getLastIntent } from '@/lib/intentClassifier';
 import { getBaseUrl } from '@/lib/url';
+import { autoEvolveAfterConversation } from '@/lib/thinkingEvolution';
+import { callGemini, CallPriority } from '@/lib/geminiManager';
+import { callGPT5 } from '@/lib/gpt5Manager';
 
 const AGENT_CARD_PATH = ".well-known/agent.json";
 
 // Define DynamicAgentExecutor class before using it
 class DynamicAgentExecutor implements AgentExecutor {
   private static historyStore: Record<string, Message[]> = {};
+  private static lastEvolutionTime: Record<string, number> = {};
+  private static MIN_EVOLUTION_INTERVAL_MS = 60000; // 60 seconds (1 minute)
+  private static lastIntentClassificationTime: Record<string, number> = {};
+  private static MIN_INTENT_CLASSIFICATION_INTERVAL_MS = 60000; // 60 seconds (1 minute)
   private genAI?: GoogleGenerativeAI;
   private model?: ReturnType<GoogleGenerativeAI['getGenerativeModel']>;
 
@@ -27,7 +35,9 @@ class DynamicAgentExecutor implements AgentExecutor {
     private agentId: string,
     private prompt: string,
     private modelProvider: string,
-    private modelName: string
+    private modelName: string,
+    private initialThinking?: string,
+    private initialCaring?: string
   ) {
     if (this.modelProvider === 'gemini') {
       this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '');
@@ -35,50 +45,131 @@ class DynamicAgentExecutor implements AgentExecutor {
     }
   }
 
+  private getContextKey(contextId: string): string {
+    return `${this.agentId}-${contextId}`;
+  }
+
+  private buildSystemPrompt(intent: string, thinking: string, caring: string): string {
+    let memoryContext = '';
+    if (thinking && thinking !== '(empty)') {
+      memoryContext = `\n\nContext for "${intent}":\n- What I know: ${thinking}\n- About you: ${caring}`;
+    }
+
+    const basePrompt = `${this.prompt}
+
+RESPONSE STYLE:
+- Keep responses SHORT and conversational (like a natural chat)
+- Match the user's message length and energy
+- For simple greetings (hi, hello), respond briefly and warmly
+- Only give detailed explanations when specifically asked
+
+INTERNAL GUIDANCE (do not mention to user):${memoryContext}
+Use this knowledge naturally when relevant, but keep responses concise.`;
+
+    return basePrompt;
+  }
+
   async execute(
     requestContext: RequestContext,
     eventBus: ExecutionEventBus
   ): Promise<void> {
     const contextId = requestContext.contextId;
-    const key = `${this.agentId}-${contextId}`;
-    
+    const key = this.getContextKey(contextId);
+    const incomingMessage = requestContext.userMessage;
+
+    // Classify intent and get relevant memory
+    let intent = 'general';
+    let thinking = '';
+    let caring = '';
+
+    if (incomingMessage && this.modelProvider === 'gemini') {
+      try {
+        // Rate limit intent classification to once per minute
+        const now = Date.now();
+        const classificationKey = `${this.agentId}-${contextId}`;
+        const lastClassification = DynamicAgentExecutor.lastIntentClassificationTime[classificationKey];
+
+        if (lastClassification && (now - lastClassification) < DynamicAgentExecutor.MIN_INTENT_CLASSIFICATION_INTERVAL_MS) {
+          // Use previous intent (skip Gemini call)
+          const previousIntent = await getLastIntent(this.agentId);
+          intent = previousIntent || 'general';
+          const waitTime = Math.ceil((DynamicAgentExecutor.MIN_INTENT_CLASSIFICATION_INTERVAL_MS - (now - lastClassification)) / 1000);
+          console.log(`⏭️ [Intent] Using previous intent: ${intent} (wait ${waitTime}s for re-classification)`);
+        } else {
+          // Classify intent with Gemini
+          const existingHistory = DynamicAgentExecutor.historyStore[key] || [];
+          const recentHistory = existingHistory.slice(-6);
+          const messagesForContext = [...recentHistory, incomingMessage];
+          const conversationText = messagesForContext
+            .map(msg => {
+              const textPart = msg.parts.find(part => part.kind === "text");
+              return `${msg.role}: ${(textPart as any)?.text || ""}`;
+            })
+            .join('\n');
+
+          const previousIntent = await getLastIntent(this.agentId);
+          intent = await classifyIntent(this.agentId, conversationText, previousIntent);
+
+          // Update last classification time
+          DynamicAgentExecutor.lastIntentClassificationTime[classificationKey] = now;
+          console.log('🎯 [Intent] Classified:', intent, previousIntent ? `(previous: ${previousIntent})` : '');
+        }
+
+        // Get thinking based on intent
+        thinking = await getThinkingMemory(this.agentId, intent);
+
+        // Get caring based on user (contextId as username)
+        caring = await getUserCaring(this.agentId, contextId);
+
+        console.log('📖 Using memory:', { intent, thinking, username: contextId, caring });
+      } catch (error) {
+        console.error('Error getting memory:', error);
+      }
+    }
+
+    // Initialize history with system prompt if needed
     if (!DynamicAgentExecutor.historyStore[key]) {
       DynamicAgentExecutor.historyStore[key] = [];
-      // Add initial system prompt
+      const systemPrompt = this.buildSystemPrompt(intent, thinking, caring);
       const initialMessage: Message = {
         kind: "message",
         messageId: uuidv4(),
         role: "user",
-        parts: [{ kind: "text", text: this.prompt }],
+        parts: [{ kind: "text", text: systemPrompt }],
         contextId,
       };
       DynamicAgentExecutor.historyStore[key].push(initialMessage);
     }
-    
+
+    // Add incoming message to history
     const history = DynamicAgentExecutor.historyStore[key];
-    const incomingMessage = requestContext.userMessage;
-    
     if (incomingMessage) {
       history.push(incomingMessage);
     }
 
     try {
       if (this.modelProvider === 'gemini' && this.model) {
-        // Convert history to Gemini format
-        const geminiMessages = history.map(msg => {
-          const textPart = msg.parts.find(part => part.kind === "text");
-          return {
-            role: msg.role === "user" ? "user" : "model",
-            parts: [{ text: textPart?.text || "" }]
-          };
-        });
+        // Convert history to GPT-5 message format
+        const systemPrompt = this.buildSystemPrompt(intent, thinking, caring);
+        const gpt5Messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+          { role: "system", content: systemPrompt }
+        ];
 
-        const result = await this.model.generateContent({
-          contents: geminiMessages
-        });
-        
-        const geminiResponse = await result.response;
-        const responseText = geminiResponse.text();
+        // Add conversation history (skip the first message which is the system prompt)
+        for (let i = 1; i < history.length; i++) {
+          const msg = history[i];
+          const textPart = msg.parts.find(part => part.kind === "text");
+          const content = textPart?.text || "";
+
+          if (msg.role === "user") {
+            gpt5Messages.push({ role: "user", content });
+          } else if (msg.role === "agent") {
+            gpt5Messages.push({ role: "assistant", content });
+          }
+        }
+
+        // Call GPT-5 for user-facing responses
+        const responseText = await callGPT5(gpt5Messages);
 
         const responseMessage: Message = {
           kind: "message",
@@ -86,10 +177,40 @@ class DynamicAgentExecutor implements AgentExecutor {
           role: "agent",
           parts: [{ kind: "text", text: responseText }],
           contextId,
+          // Store intent in metadata (non-standard but works for our use case)
+          ...(intent && { metadata: { intent } } as any)
         };
-        
+
         history.push(responseMessage);
         eventBus.publish(responseMessage);
+
+        // Auto-evolve thinking after meaningful conversations (in background)
+        // Rate limit: only evolve once per minute
+        if (intent && intent !== 'general' && history.length >= 6) {
+          const now = Date.now();
+          const evolutionKey = `${this.agentId}-${intent}`;
+          const lastEvolution = DynamicAgentExecutor.lastEvolutionTime[evolutionKey];
+
+          if (!lastEvolution || (now - lastEvolution) >= DynamicAgentExecutor.MIN_EVOLUTION_INTERVAL_MS) {
+            DynamicAgentExecutor.lastEvolutionTime[evolutionKey] = now;
+
+            const conversationForEvolution = history.slice(-6).map(msg => {
+              const textPart = msg.parts.find(part => part.kind === "text");
+              return {
+                role: msg.role,
+                text: (textPart as any)?.text || ""
+              };
+            });
+
+            // Run evolution asynchronously (don't await)
+            console.log(`🔄 [Auto-evolution] Triggering for ${this.agentId} - ${intent}`);
+            autoEvolveAfterConversation(this.agentId, intent, conversationForEvolution)
+              .catch(err => console.error('Auto-evolution error:', err));
+          } else {
+            const waitTime = Math.ceil((DynamicAgentExecutor.MIN_EVOLUTION_INTERVAL_MS - (now - lastEvolution)) / 1000);
+            console.log(`⏭️ [Auto-evolution] Skipped for ${this.agentId} - ${intent} (wait ${waitTime}s)`);
+          }
+        }
       } else {
         const errorMessage: Message = {
           kind: "message",
@@ -132,7 +253,9 @@ function ensureAgentHandlers(agent: StoredAgent, agentId: string): StoredAgent {
     agentId,
     agent.prompt,
     agent.modelProvider,
-    agent.modelName
+    agent.modelName,
+    agent.thinking,
+    agent.caring
   );
 
   const requestHandler = new DefaultRequestHandler(
@@ -195,7 +318,9 @@ async function ensureSampleAgent(request: NextRequest) {
     sampleAgentId,
     samplePrompt,
     sampleModelProvider,
-    sampleModelName
+    sampleModelName,
+    undefined, // thinking will evolve through conversation
+    undefined  // caring will evolve through conversation
   );
 
   const requestHandler = new DefaultRequestHandler(
@@ -296,7 +421,9 @@ export async function POST(
         agentId,
         agentConfig.prompt,
         agentConfig.modelProvider,
-        agentConfig.modelName
+        agentConfig.modelName,
+        undefined, // thinking will evolve through conversation
+        undefined  // caring will evolve through conversation
       );
 
       const requestHandler = new DefaultRequestHandler(
@@ -395,4 +522,36 @@ export async function POST(
   }
 
   return NextResponse.json({ error: 'Not Found' }, { status: 404 });
+}
+
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ agentId: string; path?: string[] }> }
+) {
+  const params = await context.params;
+  const agentId = params.agentId;
+
+  console.log('🗑️ DELETE request for agent:', agentId);
+
+  // Prevent deletion of sample agent
+  if (agentId === sampleAgentId) {
+    return NextResponse.json(
+      { error: "Cannot delete the sample agent" },
+      { status: 403 }
+    );
+  }
+
+  try {
+    const exists = await hasAgent(agentId);
+    if (!exists) {
+      return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+    }
+
+    await deleteAgent(agentId);
+    console.log('✅ Agent deleted successfully:', agentId);
+    return NextResponse.json({ success: true, agentId });
+  } catch (error) {
+    console.error("Delete error:", error);
+    return NextResponse.json({ error: "Failed to delete agent" }, { status: 500 });
+  }
 }
