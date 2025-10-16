@@ -1,34 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AgentConfig } from '@/types/agent';
-import { getBaseUrl } from '@/lib/url';
-
+import { setAgent } from '@/lib/agentStore';
+import type { AgentCard } from "@a2a-js/sdk";
 export async function POST(request: NextRequest) {
   try {
     const agentConfig: AgentConfig = await request.json();
-
-    // Extract agent ID from URL
     const agentId = agentConfig.id;
 
-    // Use relative path for internal API call
-    const deployUrl = `/api/agents/${agentId}/deploy`;
+    console.log('🚀 Deploying agent:', agentId);
 
-    // Get the base URL from request headers
-    const baseUrl = getBaseUrl(request);
-    const absoluteDeployUrl = `${baseUrl}${deployUrl}`;
+    const agentCard: AgentCard = {
+      name: agentConfig.name,
+      description: agentConfig.description,
+      protocolVersion: agentConfig.protocolVersion,
+      version: agentConfig.version,
+      url: agentConfig.url,
+      capabilities: agentConfig.capabilities,
+      defaultInputModes: agentConfig.defaultInputModes,
+      defaultOutputModes: agentConfig.defaultOutputModes,
+      skills: agentConfig.skills,
+    };
 
-    console.log('🚀 Deploying agent to:', absoluteDeployUrl);
-
-    const deployResponse = await fetch(absoluteDeployUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(agentConfig),
+    // Store agent configuration in Redis
+    // The executor will be created on-demand when the agent receives a message
+    await setAgent(agentId, {
+      card: agentCard,
+      prompt: agentConfig.prompt,
+      modelProvider: agentConfig.modelProvider,
+      modelName: agentConfig.modelName,
     });
-
-    if (!deployResponse.ok) {
-      const errorText = await deployResponse.text();
-      console.error('❌ Deploy failed:', errorText);
-      throw new Error(`Failed to deploy agent to endpoint: ${deployResponse.status} ${errorText}`);
-    }
 
     console.log('✅ Agent deployed successfully:', agentId);
 
