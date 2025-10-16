@@ -24,7 +24,6 @@ export default function HomeContent() {
   const [thinkingFacts, setThinkingFacts] = useState<string[]>([]);
   const [caringFacts, setCaringFacts] = useState<string[]>([]);
   const [currentIntent, setCurrentIntent] = useState<string | null>(null);
-  const [allIntents, setAllIntents] = useState<Array<{intent: string, factCount: number}>>([]);
   const [username, setUsername] = useState<string | null>(null);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [usernameInput, setUsernameInput] = useState('');
@@ -134,10 +133,6 @@ export default function HomeContent() {
           setCaringFacts([]);
         }
 
-        // Update all intents list
-        if (data.allIntents) {
-          setAllIntents(data.allIntents);
-        }
       }
     } catch (err) {
       console.error('Failed to fetch agent status:', err);
@@ -216,11 +211,12 @@ export default function HomeContent() {
 
       if (isMessage(resultEvent)) {
           // Extract intent from response metadata if available
-          const intent = (resultEvent as any).metadata?.intent;
+          const messageWithMetadata = resultEvent as Message & { metadata?: { intent?: string } };
+          const intent = messageWithMetadata.metadata?.intent;
           console.log('📨 Agent response:', {
-            hasMetadata: !!(resultEvent as any).metadata,
+            hasMetadata: !!messageWithMetadata.metadata,
             intent,
-            fullMetadata: (resultEvent as any).metadata
+            fullMetadata: messageWithMetadata.metadata
           });
 
           if (intent) {
@@ -555,8 +551,8 @@ export default function HomeContent() {
 
             <div className="mt-6 pt-6 border-t border-gray-200">
               <p className="text-xs text-gray-500 text-center leading-relaxed">
-                <span className="font-semibold">Thinking:</span> Logic for agent's thought 🧠<br/>
-                <span className="font-semibold">Caring:</span> Logic for user's thought 💝
+                <span className="font-semibold">Thinking:</span> Logic for agent&apos;s thought 🧠<br/>
+                <span className="font-semibold">Caring:</span> Logic for user&apos;s thought 💝
               </p>
             </div>
           </div>

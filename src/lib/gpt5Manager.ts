@@ -68,10 +68,6 @@ class GPT5Manager {
         model: this.config.modelName
       });
 
-      if (response?.error !== undefined) {
-        throw new Error(`GPT-5 API Error: ${JSON.stringify(response.error)}`);
-      }
-
       const content = response.choices[0]?.message?.content;
       if (!content) {
         throw new Error("No content in GPT-5 response");

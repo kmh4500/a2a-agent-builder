@@ -1,4 +1,3 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { callGemini, CallPriority } from "./geminiManager";
 
 /**

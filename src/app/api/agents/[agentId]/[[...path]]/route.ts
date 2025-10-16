@@ -16,7 +16,6 @@ import { getAgent, setAgent, hasAgent, getAllAgents, deleteAgent, type StoredAge
 import { classifyIntent, getThinkingMemory, getUserCaring, getLastIntent } from '@/lib/intentClassifier';
 import { getBaseUrl } from '@/lib/url';
 import { autoEvolveAfterConversation } from '@/lib/thinkingEvolution';
-import { callGemini, CallPriority } from '@/lib/geminiManager';
 import { callGPT5 } from '@/lib/gpt5Manager';
 
 const AGENT_CARD_PATH = ".well-known/agent.json";
@@ -103,7 +102,7 @@ Use this knowledge naturally when relevant, but keep responses concise.`;
           const conversationText = messagesForContext
             .map(msg => {
               const textPart = msg.parts.find(part => part.kind === "text");
-              return `${msg.role}: ${(textPart as any)?.text || ""}`;
+              return `${msg.role}: ${textPart && 'text' in textPart ? textPart.text : ""}`;
             })
             .join('\n');
 
@@ -178,7 +177,7 @@ Use this knowledge naturally when relevant, but keep responses concise.`;
           parts: [{ kind: "text", text: responseText }],
           contextId,
           // Store intent in metadata (non-standard but works for our use case)
-          ...(intent && { metadata: { intent } } as any)
+          ...(intent && { metadata: { intent } } as Partial<Message>)
         };
 
         history.push(responseMessage);
@@ -198,7 +197,7 @@ Use this knowledge naturally when relevant, but keep responses concise.`;
               const textPart = msg.parts.find(part => part.kind === "text");
               return {
                 role: msg.role,
-                text: (textPart as any)?.text || ""
+                text: textPart && 'text' in textPart ? textPart.text : ""
               };
             });
 
