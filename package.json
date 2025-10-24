@@ -17,6 +17,7 @@
     "@a2a-js/sdk": "^0.3.3",
     "@google/generative-ai": "^0.24.1",
     "@upstash/redis": "^1.35.5",
+    "ioredis": "^5.8.2",
     "next": "15.5.2",
     "openai": "^6.3.0",
     "react": "19.1.0",
