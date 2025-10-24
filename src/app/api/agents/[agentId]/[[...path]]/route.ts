@@ -10,13 +10,12 @@ import {
     JsonRpcTransportHandler,
     A2AError,
 } from "@a2a-js/sdk/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 import { getAgent, setAgent, hasAgent, getAllAgents, deleteAgent, type StoredAgent } from '@/lib/agentStore';
 import { classifyIntent, getThinkingMemory, getUserCaring, getLastIntent } from '@/lib/intentClassifier';
 import { getBaseUrl } from '@/lib/url';
 import { autoEvolveAfterConversation } from '@/lib/thinkingEvolution';
-import { callGPT5 } from '@/lib/gpt5Manager';
+import { callLLM } from '@/lib/llmManager';
 
 const AGENT_CARD_PATH = ".well-known/agent.json";
 
@@ -27,8 +26,6 @@ class DynamicAgentExecutor implements AgentExecutor {
   private static MIN_EVOLUTION_INTERVAL_MS = 60000; // 60 seconds (1 minute)
   private static lastIntentClassificationTime: Record<string, number> = {};
   private static MIN_INTENT_CLASSIFICATION_INTERVAL_MS = 60000; // 60 seconds (1 minute)
-  private genAI?: GoogleGenerativeAI;
-  private model?: ReturnType<GoogleGenerativeAI['getGenerativeModel']>;
 
   constructor(
     private agentId: string,
@@ -38,10 +35,7 @@ class DynamicAgentExecutor implements AgentExecutor {
     private initialThinking?: string,
     private initialCaring?: string
   ) {
-    if (this.modelProvider === 'gemini') {
-      this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '');
-      this.model = this.genAI.getGenerativeModel({ model: this.modelName });
-    }
+    // Model provider is no longer needed since we use unified LLM API
   }
 
   private getContextKey(contextId: string): string {
@@ -81,7 +75,7 @@ Use this knowledge naturally when relevant, but keep responses concise.`;
     let thinking = '';
     let caring = '';
 
-    if (incomingMessage && this.modelProvider === 'gemini') {
+    if (incomingMessage) {
       try {
         // Rate limit intent classification to once per minute
         const now = Date.now();
@@ -89,13 +83,13 @@ Use this knowledge naturally when relevant, but keep responses concise.`;
         const lastClassification = DynamicAgentExecutor.lastIntentClassificationTime[classificationKey];
 
         if (lastClassification && (now - lastClassification) < DynamicAgentExecutor.MIN_INTENT_CLASSIFICATION_INTERVAL_MS) {
-          // Use previous intent (skip Gemini call)
+          // Use previous intent (skip LLM call)
           const previousIntent = await getLastIntent(this.agentId);
           intent = previousIntent || 'general';
           const waitTime = Math.ceil((DynamicAgentExecutor.MIN_INTENT_CLASSIFICATION_INTERVAL_MS - (now - lastClassification)) / 1000);
           console.log(`⏭️ [Intent] Using previous intent: ${intent} (wait ${waitTime}s for re-classification)`);
         } else {
-          // Classify intent with Gemini
+          // Classify intent with LLM
           const existingHistory = DynamicAgentExecutor.historyStore[key] || [];
           const recentHistory = existingHistory.slice(-6);
           const messagesForContext = [...recentHistory, incomingMessage];
@@ -147,79 +141,67 @@ Use this knowledge naturally when relevant, but keep responses concise.`;
     }
 
     try {
-      if (this.modelProvider === 'gemini' && this.model) {
-        // Convert history to GPT-5 message format
-        const systemPrompt = this.buildSystemPrompt(intent, thinking, caring);
-        const gpt5Messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-          { role: "system", content: systemPrompt }
-        ];
+      // Convert history to LLM message format
+      const systemPrompt = this.buildSystemPrompt(intent, thinking, caring);
+      const llmMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+        { role: "system", content: systemPrompt }
+      ];
 
-        // Add conversation history (skip the first message which is the system prompt)
-        for (let i = 1; i < history.length; i++) {
-          const msg = history[i];
-          const textPart = msg.parts.find(part => part.kind === "text");
-          const content = textPart?.text || "";
+      // Add conversation history (skip the first message which is the system prompt)
+      for (let i = 1; i < history.length; i++) {
+        const msg = history[i];
+        const textPart = msg.parts.find(part => part.kind === "text");
+        const content = textPart?.text || "";
 
-          if (msg.role === "user") {
-            gpt5Messages.push({ role: "user", content });
-          } else if (msg.role === "agent") {
-            gpt5Messages.push({ role: "assistant", content });
-          }
+        if (msg.role === "user") {
+          llmMessages.push({ role: "user", content });
+        } else if (msg.role === "agent") {
+          llmMessages.push({ role: "assistant", content });
         }
+      }
 
-        // Call GPT-5 for user-facing responses
-        const responseText = await callGPT5(gpt5Messages);
+      // Call LLM for user-facing responses
+      const responseText = await callLLM(llmMessages);
 
-        const responseMessage: Message = {
-          kind: "message",
-          messageId: uuidv4(),
-          role: "agent",
-          parts: [{ kind: "text", text: responseText }],
-          contextId,
-          // Store intent in metadata (non-standard but works for our use case)
-          ...(intent && { metadata: { intent } } as Partial<Message>)
-        };
+      const responseMessage: Message = {
+        kind: "message",
+        messageId: uuidv4(),
+        role: "agent",
+        parts: [{ kind: "text", text: responseText }],
+        contextId,
+        // Store intent in metadata (non-standard but works for our use case)
+        ...(intent && { metadata: { intent } } as Partial<Message>)
+      };
 
-        history.push(responseMessage);
-        eventBus.publish(responseMessage);
+      history.push(responseMessage);
+      eventBus.publish(responseMessage);
 
-        // Auto-evolve thinking after meaningful conversations (in background)
-        // Rate limit: only evolve once per minute
-        if (intent && intent !== 'general' && history.length >= 6) {
-          const now = Date.now();
-          const evolutionKey = `${this.agentId}-${intent}`;
-          const lastEvolution = DynamicAgentExecutor.lastEvolutionTime[evolutionKey];
+      // Auto-evolve thinking after meaningful conversations (in background)
+      // Rate limit: only evolve once per minute
+      if (intent && intent !== 'general' && history.length >= 6) {
+        const now = Date.now();
+        const evolutionKey = `${this.agentId}-${intent}`;
+        const lastEvolution = DynamicAgentExecutor.lastEvolutionTime[evolutionKey];
 
-          if (!lastEvolution || (now - lastEvolution) >= DynamicAgentExecutor.MIN_EVOLUTION_INTERVAL_MS) {
-            DynamicAgentExecutor.lastEvolutionTime[evolutionKey] = now;
+        if (!lastEvolution || (now - lastEvolution) >= DynamicAgentExecutor.MIN_EVOLUTION_INTERVAL_MS) {
+          DynamicAgentExecutor.lastEvolutionTime[evolutionKey] = now;
 
-            const conversationForEvolution = history.slice(-6).map(msg => {
-              const textPart = msg.parts.find(part => part.kind === "text");
-              return {
-                role: msg.role,
-                text: textPart && 'text' in textPart ? textPart.text : ""
-              };
-            });
+          const conversationForEvolution = history.slice(-6).map(msg => {
+            const textPart = msg.parts.find(part => part.kind === "text");
+            return {
+              role: msg.role,
+              text: textPart && 'text' in textPart ? textPart.text : ""
+            };
+          });
 
-            // Run evolution asynchronously (don't await)
-            console.log(`🔄 [Auto-evolution] Triggering for ${this.agentId} - ${intent}`);
-            autoEvolveAfterConversation(this.agentId, intent, conversationForEvolution)
-              .catch(err => console.error('Auto-evolution error:', err));
-          } else {
-            const waitTime = Math.ceil((DynamicAgentExecutor.MIN_EVOLUTION_INTERVAL_MS - (now - lastEvolution)) / 1000);
-            console.log(`⏭️ [Auto-evolution] Skipped for ${this.agentId} - ${intent} (wait ${waitTime}s)`);
-          }
+          // Run evolution asynchronously (don't await)
+          console.log(`🔄 [Auto-evolution] Triggering for ${this.agentId} - ${intent}`);
+          autoEvolveAfterConversation(this.agentId, intent, conversationForEvolution)
+            .catch(err => console.error('Auto-evolution error:', err));
+        } else {
+          const waitTime = Math.ceil((DynamicAgentExecutor.MIN_EVOLUTION_INTERVAL_MS - (now - lastEvolution)) / 1000);
+          console.log(`⏭️ [Auto-evolution] Skipped for ${this.agentId} - ${intent} (wait ${waitTime}s)`);
         }
-      } else {
-        const errorMessage: Message = {
-          kind: "message",
-          messageId: uuidv4(),
-          role: "agent",
-          parts: [{ kind: "text", text: "This model provider is not implemented yet." }],
-          contextId,
-        };
-        history.push(errorMessage);
-        eventBus.publish(errorMessage);
       }
     } catch (error) {
       console.error("Error calling AI model:", error);
@@ -309,8 +291,9 @@ async function ensureSampleAgent(request: NextRequest) {
   };
 
   const samplePrompt = "You are Socrates, teaching Web3 and AI concepts using the Socratic method.";
-  const sampleModelProvider = 'gemini';
-  const sampleModelName = 'gemini-2.5-flash';
+  const sampleModelProvider = 'Google';
+  const modelPath = process.env.LLM_MODEL || 'gemma-3-27b-it';
+  const sampleModelName = modelPath.split('/').pop() || 'gemma-3-27b-it';
 
   // Initialize executor, request handler, and transport handler for sample agent
   const executor = new DynamicAgentExecutor(

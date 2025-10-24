@@ -1,6 +1,6 @@
 import { getAgent, setAgent } from './agentStore';
 import type { IntentMemory } from './agentStore';
-import { callGPT5 } from './gpt5Manager';
+import { callLLM } from './llmManager';
 
 // Try to match intent from stored patterns first
 async function matchIntentFromPatterns(
@@ -69,8 +69,8 @@ export async function classifyIntent(
     return matchedIntent;
   }
 
-  // Step 2: No match found, call GPT-5
-  console.log('📞 No pattern match - calling GPT-5 for intent classification');
+  // Step 2: No match found, call LLM
+  console.log('📞 No pattern match - calling LLM for intent classification');
 
   const previousIntentContext = previousIntent
     ? `\nPrevious intent: ${previousIntent}`
@@ -98,7 +98,7 @@ KEYWORDS: 이순신, yi_sun_sin, admiral, 충무공, 장군, turtle ship`;
   const userPrompt = `Conversation:
 ${conversationText}`;
 
-  const response = await callGPT5([
+  const response = await callLLM([
     { role: "system", content: systemPrompt },
     { role: "user", content: userPrompt }
   ]);
@@ -119,7 +119,7 @@ ${conversationText}`;
     const keywordString = keywordsMatch[1].trim();
     const parsedKeywords = keywordString.split(',').map(k => k.trim().toLowerCase()).filter(k => k.length > 0);
     keywords.push(...parsedKeywords);
-    console.log(`📝 GPT-5 provided keywords:`, parsedKeywords);
+    console.log(`📝 LLM provided keywords:`, parsedKeywords);
   }
 
   // Step 3: Save the new pattern for future use

@@ -1,6 +1,6 @@
 import { LogicalReasoningEngine } from "./logicalReasoning";
 import { getAgent, setAgent } from "./agentStore";
-import { callGemini, CallPriority } from "./geminiManager";
+import { callLLM } from "./llmManager";
 
 /**
  * Thinking Evolution Module
@@ -189,7 +189,10 @@ List 2-3 meaningful connections or relationships between these topics.
 Return as JSON array: ["connection 1", "connection 2"]`;
 
   try {
-    const text = await callGemini(prompt, 'gemini-2.5-flash', CallPriority.LOW);
+    const text = await callLLM([
+      { role: "system", content: "You are a helpful assistant that finds connections between topics." },
+      { role: "user", content: prompt }
+    ]);
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);

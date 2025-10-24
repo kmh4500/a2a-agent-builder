@@ -1,4 +1,4 @@
-import { callGemini, CallPriority } from "./geminiManager";
+import { callLLM } from "./llmManager";
 
 /**
  * Logical Reasoning Engine
@@ -197,8 +197,11 @@ Return ONLY a JSON array of strings, no other text:
 ["proposition 1", "proposition 2", "proposition 3"]`;
 
     try {
-      // Use LOW priority for background reasoning tasks
-      const text = await callGemini(prompt, this.modelName, CallPriority.LOW);
+      // Use LLM for background reasoning tasks
+      const text = await callLLM([
+        { role: "system", content: "You are an advanced reasoning system that generates logical propositions." },
+        { role: "user", content: prompt }
+      ]);
 
       console.log('📝 [ReasoningPrompt] Raw response:', text.substring(0, 200));
 
@@ -257,7 +260,10 @@ ${conversationContext}
 Return ONLY the proposition as a single sentence, nothing else.`;
 
     try {
-      const text = await callGemini(prompt, this.modelName, CallPriority.LOW);
+      const text = await callLLM([
+        { role: "system", content: "You are an advanced reasoning system." },
+        { role: "user", content: prompt }
+      ]);
       return text.trim();
     } catch (error) {
       console.error("❌ [ReasoningPrompt] Error generating initial proposition:", error);
@@ -315,7 +321,10 @@ CONFIDENCE: 0.8
 REASON: Contradicts established fact about X`;
 
     try {
-      const text = await callGemini(prompt, this.modelName, CallPriority.LOW);
+      const text = await callLLM([
+        { role: "system", content: "You are a strict logical consistency checker." },
+        { role: "user", content: prompt }
+      ]);
 
       // Parse verification result
       const verdictMatch = text.match(/VERDICT:\s*(VALID|INVALID|UNCERTAIN)/i);
