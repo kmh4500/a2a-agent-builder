@@ -1,0 +1,28 @@
+# Dependencies
+node_modules
+
+# Build output
+.next
+out
+
+# Environment files
+.env
+.env*.local
+.env.vercel
+.env.swp
+
+# Git
+.git
+.gitignore
+
+# Editor
+.vscode
+.idea
+*.swp
+*.swo
+
+# Misc
+.DS_Store
+*.log
+.vercel
+*.tsbuildinfo
