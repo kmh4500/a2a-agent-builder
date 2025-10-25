@@ -153,11 +153,26 @@ Use this knowledge naturally when relevant, but keep responses concise.`;
         const textPart = msg.parts.find(part => part.kind === "text");
         const content = textPart?.text || "";
 
-        if (msg.role === "user") {
-          llmMessages.push({ role: "user", content });
-        } else if (msg.role === "agent") {
-          llmMessages.push({ role: "assistant", content });
+        if (!content) continue; // Skip empty messages
+
+        const role = msg.role === "user" ? "user" : "assistant";
+
+        // Ensure alternating user/assistant pattern
+        const lastMessage = llmMessages[llmMessages.length - 1];
+        if (lastMessage && lastMessage.role === role) {
+          // Same role as previous message, merge content
+          lastMessage.content += "\n\n" + content;
+        } else {
+          llmMessages.push({ role, content });
         }
+      }
+
+      // Ensure the last message is from user (required by most LLM APIs)
+      const lastMsg = llmMessages[llmMessages.length - 1];
+      if (lastMsg && lastMsg.role !== "user") {
+        // This shouldn't happen in normal flow, but handle it
+        console.warn('⚠️ Last message is not from user, adding placeholder');
+        llmMessages.push({ role: "user", content: "Please continue." });
       }
 
       // Call LLM for user-facing responses
